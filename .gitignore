@@ -21,6 +21,7 @@ local.properties
 # Firebase project credentials — fork users supply their own google-services.json
 # (must NOT be committed; Firebase API key + project IDs leak otherwise)
 app/google-services.json
+.google-services-base64.txt
 
 # macOS specific files
 .DS_Store

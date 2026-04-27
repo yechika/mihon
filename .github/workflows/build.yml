@@ -51,6 +51,15 @@ jobs:
       - name: Verify Firebase-free path compiles
         run: ./gradlew :app:compileDebugKotlin
 
+      - name: Restore google-services.json from secret
+        if: ${{ env.GOOGLE_SERVICES_JSON_BASE64 != '' }}
+        env:
+          GOOGLE_SERVICES_JSON_BASE64: ${{ secrets.GOOGLE_SERVICES_JSON_BASE64 }}
+        run: |
+          echo "$GOOGLE_SERVICES_JSON_BASE64" | base64 -d > app/google-services.json
+          test -s app/google-services.json
+          echo "google-services.json restored ($(wc -c < app/google-services.json) bytes)"
+
       - name: Verify SQLDelight migrations
         run: ./gradlew verifySqlDelightMigration
 
@@ -62,11 +71,17 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest
 
       - name: Build app
-        # NOTE: -Pinclude-telemetry intentionally omitted on CI because
-        # app/google-services.json is fork-specific and gitignored. The
-        # Firebase variant is built locally by fork maintainers; CI verifies
-        # the no-Firebase / noop source-set path only.
-        run: ./gradlew assembleRelease -Penable-updater
+        # When the GOOGLE_SERVICES_JSON_BASE64 secret is set, the previous step
+        # restores app/google-services.json and we build with -Pinclude-telemetry
+        # so the Firebase / cloud-sync variant ships. Otherwise we fall back to
+        # the no-Firebase / noop path so forks without a Firebase project can
+        # still pass CI.
+        run: |
+          if [ -s app/google-services.json ]; then
+            ./gradlew assembleRelease -Pinclude-telemetry -Penable-updater
+          else
+            ./gradlew assembleRelease -Penable-updater
+          fi
 
       - name: Upload APK
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
