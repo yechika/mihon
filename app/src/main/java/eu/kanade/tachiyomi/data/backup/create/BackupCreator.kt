@@ -53,6 +53,31 @@ class BackupCreator(
     private val sourcesBackupCreator: SourcesBackupCreator = SourcesBackupCreator(),
 ) {
 
+    /**
+     * Build the in-memory [Backup] model without writing it to a file. Used by the cloud-sync
+     * engine to obtain the protobuf bytes that go into a Firestore snapshot document.
+     */
+    suspend fun buildBackupModel(options: BackupOptions): Backup {
+        val nonFavoriteManga = if (options.readEntries) mangaRepository.getReadMangaNotInLibrary() else emptyList()
+        val backupManga = backupMangas(getFavorites.await() + nonFavoriteManga, options)
+        return Backup(
+            backupManga = backupManga,
+            backupCategories = backupCategories(options),
+            backupSources = backupSources(backupManga),
+            backupPreferences = backupAppPreferences(options),
+            backupExtensionRepo = backupExtensionRepos(options),
+            backupSourcePreferences = backupSourcePreferences(options),
+        )
+    }
+
+    /**
+     * Encode the current library state as a raw (un-gzipped) protobuf byte array.
+     */
+    suspend fun encodeBackupBytes(options: BackupOptions): ByteArray {
+        val backup = buildBackupModel(options)
+        return parser.encodeToByteArray(Backup.serializer(), backup)
+    }
+
     suspend fun backup(uri: Uri, options: BackupOptions): String {
         var file: UniFile? = null
         try {

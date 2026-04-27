@@ -1,0 +1,80 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // -- Helpers ----------------------------------------------------------------
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isCreate() {
+      return resource == null;
+    }
+
+    // Username uniqueness reservations.
+    //
+    // - Any signed-in user may READ a username doc (so the client can probe
+    //   for "is this username taken?" before issuing the create).
+    // - Anyone signed in may CREATE a username reservation IF they are
+    //   recording themselves as the owner.
+    // - Username docs are immutable: no updates, no deletes from the client.
+    //   Account deletion (which removes the reservation) is handled either
+    //   by a Cloud Function or by a future privileged code path. For v1 the
+    //   client recursive-deletes its own /users/{uid}/** but the username
+    //   reservation persists. This is a known limitation; documented in
+    //   firebase/README.md.
+    match /usernames/{username} {
+      // Public read so the sign-up form can probe "is this username taken?" before
+      // the user has an auth session. The doc only contains uid + createdAt — no PII.
+      allow read: if true;
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.keys().hasOnly(['uid', 'createdAt']);
+      allow update, delete: if false;
+    }
+
+    // Per-user document tree.
+    //
+    // Every read and write is scoped to the signed-in owner. A user can never
+    // read or write another user's data.
+    match /users/{uid} {
+      allow read, write: if isOwner(uid);
+
+      // Library snapshot (singleton: /users/{uid}/library/snapshot).
+      match /library/{document=**} {
+        allow read, write: if isOwner(uid);
+      }
+
+      // Per-manga progress documents.
+      match /progress/{mangaId} {
+        allow read: if isOwner(uid);
+
+        // Writers may set/merge but every payload must:
+        // - keep the same mangaId
+        // - keep readChapterIds as an array
+        // - keep lastReadAt as a number
+        allow create, update: if isOwner(uid)
+          && request.resource.data.mangaId == mangaId
+          && request.resource.data.readChapterIds is list
+          && request.resource.data.lastReadAt is number;
+        allow delete: if isOwner(uid);
+      }
+
+      // Profile (recovery email, etc.).
+      match /profile/{document=**} {
+        allow read, write: if isOwner(uid);
+      }
+    }
+
+    // Default deny everything else.
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

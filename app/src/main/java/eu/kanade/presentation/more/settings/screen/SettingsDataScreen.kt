@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.ReadOnlyComposable
+import androidx.compose.runtime.collectAsState as composeCollectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -43,6 +44,7 @@ import cafe.adriel.voyager.navigator.LocalNavigator
 import cafe.adriel.voyager.navigator.currentOrThrow
 import com.hippo.unifile.UniFile
 import eu.kanade.presentation.more.settings.Preference
+import eu.kanade.presentation.more.settings.screen.cloudsync.AccountSignInScreen
 import eu.kanade.presentation.more.settings.screen.data.CreateBackupScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
 import eu.kanade.presentation.more.settings.screen.data.StorageInfo
@@ -52,6 +54,10 @@ import eu.kanade.presentation.util.relativeTimeSpanString
 import eu.kanade.tachiyomi.data.backup.create.BackupCreateJob
 import eu.kanade.tachiyomi.data.backup.restore.BackupRestoreJob
 import eu.kanade.tachiyomi.data.cache.ChapterCache
+import eu.kanade.tachiyomi.data.cloudsync.AccountManager
+import eu.kanade.tachiyomi.data.cloudsync.AccountState
+import eu.kanade.tachiyomi.data.cloudsync.CloudSyncEngine
+import eu.kanade.tachiyomi.data.cloudsync.PushResult
 import eu.kanade.tachiyomi.data.export.LibraryExporter
 import eu.kanade.tachiyomi.data.export.LibraryExporter.ExportOptions
 import eu.kanade.tachiyomi.util.system.DeviceUtil
@@ -67,6 +73,7 @@ import tachiyomi.core.common.util.lang.launchNonCancellable
 import tachiyomi.core.common.util.lang.withUIContext
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.backup.service.BackupPreferences
+import tachiyomi.domain.cloudsync.service.CloudSyncPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.manga.interactor.GetFavorites
 import tachiyomi.domain.manga.model.Manga
@@ -102,14 +109,82 @@ object SettingsDataScreen : SearchableSettings {
     override fun getPreferences(): List<Preference> {
         val backupPreferences = Injekt.get<BackupPreferences>()
         val storagePreferences = Injekt.get<StoragePreferences>()
+        val cloudSyncPreferences = Injekt.get<CloudSyncPreferences>()
+        val accountManager = Injekt.get<AccountManager>()
+        val cloudSyncGroup = getCloudSyncGroup(cloudSyncPreferences, accountManager)
 
-        return persistentListOf(
+        return listOfNotNull(
             getStorageLocationPref(storagePreferences = storagePreferences),
             Preference.PreferenceItem.InfoPreference(stringResource(MR.strings.pref_storage_location_info)),
-
             getBackupAndRestoreGroup(backupPreferences = backupPreferences),
+            cloudSyncGroup,
             getDataGroup(),
             getExportGroup(),
+        )
+    }
+
+    @Composable
+    private fun getCloudSyncGroup(
+        cloudSyncPreferences: CloudSyncPreferences,
+        accountManager: AccountManager,
+    ): Preference.PreferenceGroup? {
+        val accountState by accountManager.state.composeCollectAsState()
+        if (accountState is AccountState.Unavailable) return null
+
+        val context = LocalContext.current
+        val navigator = LocalNavigator.currentOrThrow
+        val scope = rememberCoroutineScope()
+        val engine = remember { Injekt.get<CloudSyncEngine>() }
+        val cloudSyncEnabled by cloudSyncPreferences.cloudSyncEnabled.collectAsState()
+        val lastSyncedAt by cloudSyncPreferences.lastSyncedAt.collectAsState()
+
+        val accountSubtitle = when (val state = accountState) {
+            is AccountState.SignedIn -> stringResource(MR.strings.pref_cloud_sync_account, state.username)
+            AccountState.SignedOut -> stringResource(MR.strings.pref_cloud_sync_signed_out)
+            AccountState.Unavailable -> stringResource(MR.strings.pref_cloud_sync_unavailable)
+            else -> ""
+        }
+
+        val lastSyncedSubtitle = if (lastSyncedAt == 0L) {
+            stringResource(MR.strings.pref_cloud_sync_never_synced)
+        } else {
+            stringResource(MR.strings.pref_cloud_sync_last_synced, relativeTimeSpanString(lastSyncedAt))
+        }
+
+        return Preference.PreferenceGroup(
+            title = stringResource(MR.strings.pref_cloud_sync),
+            preferenceItems = persistentListOf(
+                Preference.PreferenceItem.SwitchPreference(
+                    preference = cloudSyncPreferences.cloudSyncEnabled,
+                    title = stringResource(MR.strings.pref_cloud_sync),
+                    subtitle = stringResource(MR.strings.pref_cloud_sync_summary),
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = accountSubtitle,
+                    onClick = {
+                        if (accountState is AccountState.SignedOut) {
+                            navigator.push(AccountSignInScreen())
+                        }
+                    },
+                ),
+                Preference.PreferenceItem.TextPreference(
+                    title = stringResource(MR.strings.action_sync_now),
+                    subtitle = lastSyncedSubtitle,
+                    enabled = cloudSyncEnabled && accountState is AccountState.SignedIn,
+                    onClick = {
+                        scope.launch {
+                            when (val result = engine.pushSnapshotIfDirty(force = true)) {
+                                is PushResult.Pushed -> context.toast(MR.strings.action_sync_now)
+                                is PushResult.Failed -> context.toast(result.reason)
+                                else -> Unit
+                            }
+                        }
+                    },
+                ),
+                Preference.PreferenceItem.InfoPreference(
+                    stringResource(MR.strings.pref_cloud_sync_what_uploaded),
+                ),
+            ),
         )
     }
 

@@ -48,6 +48,9 @@ jobs:
         id: unit_tests
         run: ./gradlew testDebugUnitTest
 
+      - name: Verify Firebase-free path compiles
+        run: ./gradlew :app:compileDebugKotlin
+
       - name: Verify SQLDelight migrations
         run: ./gradlew verifySqlDelightMigration
 

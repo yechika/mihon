@@ -101,6 +101,8 @@ class ReaderViewModel @JvmOverloads constructor(
     private val setMangaViewerFlags: SetMangaViewerFlags = Injekt.get(),
     private val getIncognitoState: GetIncognitoState = Injekt.get(),
     private val libraryPreferences: LibraryPreferences = Injekt.get(),
+    private val cloudSyncEngine: eu.kanade.tachiyomi.data.cloudsync.CloudSyncEngine = Injekt.get(),
+    private val cloudSyncPreferences: tachiyomi.domain.cloudsync.service.CloudSyncPreferences = Injekt.get(),
 ) : ViewModel() {
 
     private val mutableState = MutableStateFlow(State())
@@ -561,6 +563,19 @@ class ReaderViewModel @JvmOverloads constructor(
         readerChapter.chapter.read = true
         updateTrackChapterRead(readerChapter)
         deleteChapterIfNeeded(readerChapter)
+
+        if (cloudSyncPreferences.cloudSyncEnabled.get() && !incognitoMode) {
+            val currentManga = manga
+            val chapterId = readerChapter.chapter.id
+            if (currentManga != null && chapterId != null) {
+                runCatching {
+                    cloudSyncEngine.recordChapterRead(
+                        mangaId = "${currentManga.source}:${currentManga.url}",
+                        chapterId = chapterId.toString(),
+                    )
+                }
+            }
+        }
 
         val markDuplicateAsRead = libraryPreferences.markDuplicateReadChapterAsRead.get()
             .contains(LibraryPreferences.MARK_DUPLICATE_CHAPTER_READ_EXISTING)

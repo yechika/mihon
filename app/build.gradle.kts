@@ -91,6 +91,13 @@ android {
     sourceSets {
         getByName("preview").res.directories.add("src/debug/res")
         getByName("benchmark").res.directories.add("src/debug/res")
+        getByName("main") {
+            if (Config.includeTelemetry) {
+                kotlin.directories.add("src/firebase/kotlin")
+            } else {
+                kotlin.directories.add("src/noop/kotlin")
+            }
+        }
     }
 
     splits {
@@ -288,6 +295,13 @@ dependencies {
     implementation(libs.leakCanary.plumber)
 
     testImplementation(libs.kotlinx.coroutines.test)
+
+    if (Config.includeTelemetry) {
+        implementation(platform(libs.firebase.bom))
+        implementation(libs.firebase.auth)
+        implementation(libs.firebase.firestore)
+        implementation(libs.kotlinx.coroutines.playServices)
+    }
 }
 
 androidComponents {

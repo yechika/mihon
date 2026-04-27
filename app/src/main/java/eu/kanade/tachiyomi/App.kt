@@ -30,6 +30,7 @@ import eu.kanade.domain.ui.model.setAppCompatDelegateThemeMode
 import eu.kanade.tachiyomi.core.security.PrivacyPreferences
 import eu.kanade.tachiyomi.crash.CrashActivity
 import eu.kanade.tachiyomi.crash.GlobalExceptionHandler
+import eu.kanade.tachiyomi.data.cloudsync.CloudSyncCoordinator
 import eu.kanade.tachiyomi.data.coil.BufferedSourceFetcher
 import eu.kanade.tachiyomi.data.coil.MangaCoverFetcher
 import eu.kanade.tachiyomi.data.coil.MangaCoverKeyer
@@ -157,6 +158,15 @@ class App : Application(), DefaultLifecycleObserver, SingletonImageLoader.Factor
 
         // Updates widget update
         WidgetManager(Injekt.get(), Injekt.get()).apply { init(scope) }
+
+        CloudSyncCoordinator(
+            scope = scope,
+            engine = Injekt.get(),
+            accountManager = Injekt.get(),
+            cloudSyncPrefs = Injekt.get(),
+            getLibraryManga = Injekt.get(),
+            getCategories = Injekt.get(),
+        ).start()
 
         if (!LogcatLogger.isInstalled) {
             val minLogPriority = when {

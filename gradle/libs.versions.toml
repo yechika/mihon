@@ -124,8 +124,10 @@ conscrypt = { module = "org.conscrypt:conscrypt-android", version.ref = "conscry
 directionalViewPager = { module = "com.github.tachiyomiorg:DirectionalViewPager", version.ref = "directionalViewPager" }
 diskLruCache = { module = "com.jakewharton:disklrucache", version.ref = "diskLruCache" }
 firebase-analytics = { module = "com.google.firebase:firebase-analytics" }
+firebase-auth = { module = "com.google.firebase:firebase-auth" }
 firebase-bom = { module = "com.google.firebase:firebase-bom", version.ref = "firebase-bom" }
 firebase-crashlytics = { module = "com.google.firebase:firebase-crashlytics" }
+firebase-firestore = { module = "com.google.firebase:firebase-firestore" }
 flexibleAdapter = { module = "com.github.arkon.FlexibleAdapter:flexible-adapter", version.ref = "flexibleAdapter" }
 image-decoder = { module = "com.github.mihonapp:image-decoder", version.ref = "image-decoder" }
 injekt = { module = "com.github.mihonapp:injekt", version.ref = "injekt" }
@@ -140,6 +142,7 @@ kotlinx-collections-immutable = { module = "org.jetbrains.kotlinx:kotlinx-collec
 kotlinx-coroutines-android = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-android", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-core = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-guava = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-guava", version.ref = "kotlinx-coroutines" }
+kotlinx-coroutines-playServices = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-play-services", version.ref = "kotlinx-coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "kotlinx-coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
 kotlinx-serialization-jsonOkio = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json-okio", version.ref = "kotlinx-serialization" }

@@ -14,6 +14,7 @@ import tachiyomi.core.common.preference.AndroidPreferenceStore
 import tachiyomi.core.common.preference.PreferenceStore
 import tachiyomi.core.common.storage.AndroidStorageFolderProvider
 import tachiyomi.domain.backup.service.BackupPreferences
+import tachiyomi.domain.cloudsync.service.CloudSyncPreferences
 import tachiyomi.domain.download.service.DownloadPreferences
 import tachiyomi.domain.library.service.LibraryPreferences
 import tachiyomi.domain.storage.service.StoragePreferences
@@ -61,6 +62,9 @@ class PreferenceModule(val app: Application) : InjektModule {
         }
         addSingletonFactory {
             BackupPreferences(get())
+        }
+        addSingletonFactory {
+            CloudSyncPreferences(get())
         }
         addSingletonFactory {
             StoragePreferences(

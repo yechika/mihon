@@ -1,0 +1,22 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(./gradlew --stop)",
+      "Bash(*)",
+      "Bash(openspec --version)",
+      "Bash(openspec new *)",
+      "Bash(openspec status *)",
+      "Bash(openspec instructions *)",
+      "PowerShell(*)",
+      "PowerShell(openspec instructions design --change \"add-firebase-cloud-sync\" --json)",
+      "PowerShell(openspec instructions specs --change \"add-firebase-cloud-sync\" --json)",
+      "PowerShell(openspec instructions tasks --change \"add-firebase-cloud-sync\" --json)",
+      "PowerShell(openspec status --change \"add-firebase-cloud-sync\")",
+      "PowerShell(openspec instructions apply --change \"add-firebase-cloud-sync\" --json)",
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon -q)",
+      "Bash(./gradlew :app:compileDebugUnitTestKotlin --no-daemon)",
+      "PowerShell(Stop-Process -Force)",
+      "PowerShell(\"java killed\")"
+    ]
+  }
+}

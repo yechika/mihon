@@ -46,4 +46,10 @@ When creating a fork, remember to:
 - To avoid installation conflicts:
     - Change the `applicationId` in [`build.gradle.kts`](https://github.com/mihonapp/mihon/blob/main/app/build.gradle.kts)
 - To avoid having your data polluting the main app's analytics and crash report services:
-    - If you want to use Firebase analytics, replace [`google-services.json`](https://github.com/mihonapp/mihon/blob/main/app/src/standard/google-services.json) with your own
+    - If you want to use Firebase analytics, replace [`google-services.json`](https://github.com/mihonapp/mihon/blob/main/app/google-services.json) with your own
+- If you want the optional cloud sync feature to work for your fork's users:
+    - Replace `app/google-services.json` with credentials from your own Firebase project (Authentication with Email/Password enabled, plus Firestore in production mode).
+    - Register both `app.mihon` (or your fork's package name) and `<package>.dev` Android apps in the project, and add the SHA-1 fingerprints of your debug and release signing keys.
+    - Pin those signing-key SHA-1s in `CloudSyncProductionGuard.ALLOWED_CERTIFICATE_FINGERPRINTS` (and the package names in `ALLOWED_PACKAGES`); without that pin, the production-app guard logs a warning and lets any signed build through, which is fine for development but unsafe for shipping.
+    - Deploy the Firestore security rules at [`firebase/firestore.rules`](https://github.com/mihonapp/mihon/blob/main/firebase/firestore.rules) to your project (`firebase deploy --only firestore:rules`).
+    - Build with `-Pinclude-telemetry` to enable the Firebase source set; otherwise the no-op bindings are used and cloud sync is silently disabled — that is the default for forks that don't supply a Firebase project.

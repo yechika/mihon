@@ -34,6 +34,7 @@ Discover and read manga, webtoons, comics, and more – easier than ever on your
 * Light and dark themes.
 * Schedule updating your library for new chapters.
 * Create backups locally to read offline or to your desired cloud service.
+* Optional cloud sync of your library, categories, and reading progress to your account so data follows you between devices.
 * Plus much more...
 
 </div>
