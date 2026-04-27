@@ -111,7 +111,20 @@ object SettingsDataScreen : SearchableSettings {
         val storagePreferences = Injekt.get<StoragePreferences>()
         val cloudSyncPreferences = Injekt.get<CloudSyncPreferences>()
         val accountManager = Injekt.get<AccountManager>()
-        val cloudSyncGroup = getCloudSyncGroup(cloudSyncPreferences, accountManager)
+
+        var showSignOutConfirm by remember { mutableStateOf(false) }
+        if (showSignOutConfirm) {
+            SignOutConfirmDialog(
+                accountManager = accountManager,
+                onDismiss = { showSignOutConfirm = false },
+            )
+        }
+
+        val cloudSyncGroup = getCloudSyncGroup(
+            cloudSyncPreferences = cloudSyncPreferences,
+            accountManager = accountManager,
+            onRequestSignOut = { showSignOutConfirm = true },
+        )
 
         return listOfNotNull(
             getStorageLocationPref(storagePreferences = storagePreferences),
@@ -124,9 +137,41 @@ object SettingsDataScreen : SearchableSettings {
     }
 
     @Composable
+    private fun SignOutConfirmDialog(
+        accountManager: AccountManager,
+        onDismiss: () -> Unit,
+    ) {
+        val scope = rememberCoroutineScope()
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text(stringResource(MR.strings.action_sign_out)) },
+            text = {
+                Text(
+                    "Sign out from cloud sync? Local library stays on this device. You can sign back " +
+                        "in or switch to another account at any time.",
+                )
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    scope.launch { accountManager.signOut() }
+                    onDismiss()
+                }) {
+                    Text(stringResource(MR.strings.action_sign_out))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = onDismiss) {
+                    Text(stringResource(MR.strings.action_cancel))
+                }
+            },
+        )
+    }
+
+    @Composable
     private fun getCloudSyncGroup(
         cloudSyncPreferences: CloudSyncPreferences,
         accountManager: AccountManager,
+        onRequestSignOut: () -> Unit,
     ): Preference.PreferenceGroup? {
         val accountState by accountManager.state.composeCollectAsState()
         if (accountState is AccountState.Unavailable) return null
@@ -151,40 +196,56 @@ object SettingsDataScreen : SearchableSettings {
             stringResource(MR.strings.pref_cloud_sync_last_synced, relativeTimeSpanString(lastSyncedAt))
         }
 
+        val isSignedIn = accountState is AccountState.SignedIn
+        val items = persistentListOf<Preference.PreferenceItem<out Any, out Any>>(
+            Preference.PreferenceItem.SwitchPreference(
+                preference = cloudSyncPreferences.cloudSyncEnabled,
+                title = stringResource(MR.strings.pref_cloud_sync),
+                subtitle = stringResource(MR.strings.pref_cloud_sync_summary),
+            ),
+            Preference.PreferenceItem.TextPreference(
+                title = accountSubtitle,
+                onClick = {
+                    if (accountState is AccountState.SignedOut) {
+                        navigator.push(AccountSignInScreen())
+                    }
+                },
+            ),
+            Preference.PreferenceItem.TextPreference(
+                title = stringResource(MR.strings.action_sync_now),
+                subtitle = lastSyncedSubtitle,
+                enabled = cloudSyncEnabled && isSignedIn,
+                onClick = {
+                    scope.launch {
+                        when (val result = engine.pushSnapshotIfDirty(force = true)) {
+                            is PushResult.Pushed -> context.toast(MR.strings.action_sync_now)
+                            is PushResult.Failed -> context.toast(result.reason)
+                            else -> Unit
+                        }
+                    }
+                },
+            ),
+        ).let { base ->
+            if (isSignedIn) {
+                base.add(
+                    Preference.PreferenceItem.TextPreference(
+                        title = stringResource(MR.strings.action_sign_out),
+                        subtitle = "Sign out and optionally switch to another account",
+                        onClick = onRequestSignOut,
+                    ),
+                )
+            } else {
+                base
+            }
+        }.add(
+            Preference.PreferenceItem.InfoPreference(
+                stringResource(MR.strings.pref_cloud_sync_what_uploaded),
+            ),
+        )
+
         return Preference.PreferenceGroup(
             title = stringResource(MR.strings.pref_cloud_sync),
-            preferenceItems = persistentListOf(
-                Preference.PreferenceItem.SwitchPreference(
-                    preference = cloudSyncPreferences.cloudSyncEnabled,
-                    title = stringResource(MR.strings.pref_cloud_sync),
-                    subtitle = stringResource(MR.strings.pref_cloud_sync_summary),
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = accountSubtitle,
-                    onClick = {
-                        if (accountState is AccountState.SignedOut) {
-                            navigator.push(AccountSignInScreen())
-                        }
-                    },
-                ),
-                Preference.PreferenceItem.TextPreference(
-                    title = stringResource(MR.strings.action_sync_now),
-                    subtitle = lastSyncedSubtitle,
-                    enabled = cloudSyncEnabled && accountState is AccountState.SignedIn,
-                    onClick = {
-                        scope.launch {
-                            when (val result = engine.pushSnapshotIfDirty(force = true)) {
-                                is PushResult.Pushed -> context.toast(MR.strings.action_sync_now)
-                                is PushResult.Failed -> context.toast(result.reason)
-                                else -> Unit
-                            }
-                        }
-                    },
-                ),
-                Preference.PreferenceItem.InfoPreference(
-                    stringResource(MR.strings.pref_cloud_sync_what_uploaded),
-                ),
-            ),
+            preferenceItems = items,
         )
     }
 

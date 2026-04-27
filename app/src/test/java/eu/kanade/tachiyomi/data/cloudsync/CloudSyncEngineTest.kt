@@ -222,6 +222,59 @@ class CloudSyncEngineTest {
     }
 
     @Test
+    fun `forceRestoreCloud bypasses freshness check and wipes local first`() = runTest {
+        val storage = FakeCloudSyncStorage()
+        val account = FakeAccountManager(AccountState.SignedIn("uid-1", "tester", false))
+        val producer = FakeSnapshotProducer(nextMangaCount = 5)
+        val consumer = FakeSnapshotConsumer()
+        val wiper = FakeLocalLibraryWiper()
+        val store = InMemoryLongStore(initial = 9_999L) // local "newer" than cloud
+        storage.snapshots["uid-1"] = SnapshotEnvelope(byteArrayOf(7), 1_000L, 1, 3, "x")
+        val engine = CloudSyncEngine(
+            storage = storage,
+            accountManager = account,
+            snapshotProducer = producer,
+            snapshotConsumer = consumer,
+            lastSyncedAtStore = store,
+            clock = FakeClock(),
+            deviceLabel = "x",
+            localLibraryWiper = wiper,
+        )
+
+        val result = engine.forceRestoreCloud()
+
+        assertInstanceOf(PullResult.Restored::class.java, result)
+        assertEquals(1, wiper.wipeCount)
+        assertEquals(1, consumer.applied.size)
+    }
+
+    @Test
+    fun `replaceCloudWithLocal deletes cloud and pushes fresh snapshot`() = runTest {
+        val storage = FakeCloudSyncStorage()
+        val account = FakeAccountManager(AccountState.SignedIn("uid-1", "tester", false))
+        val producer = FakeSnapshotProducer(nextMangaCount = 8)
+        val consumer = FakeSnapshotConsumer()
+        // pre-existing cloud snapshot from previous account state
+        storage.snapshots["uid-1"] = SnapshotEnvelope(byteArrayOf(99), 5_000L, 1, 99, "old")
+        val engine = CloudSyncEngine(
+            storage = storage,
+            accountManager = account,
+            snapshotProducer = producer,
+            snapshotConsumer = consumer,
+            lastSyncedAtStore = InMemoryLongStore(),
+            clock = FakeClock(initial = 10_000L),
+            deviceLabel = "x",
+        )
+
+        val result = engine.replaceCloudWithLocal()
+
+        assertInstanceOf(PushResult.Pushed::class.java, result)
+        // deleteAll wipes; writeSnapshot replaces with the new producer output
+        assertEquals(8, storage.snapshots["uid-1"]!!.mangaCount)
+        assertEquals(10_000L, storage.snapshots["uid-1"]!!.updatedAt)
+    }
+
+    @Test
     fun `decideOnSignIn returns NoAction when signed out`() = runTest {
         val storage = FakeCloudSyncStorage()
         val account = FakeAccountManager(AccountState.SignedOut)

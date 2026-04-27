@@ -22,6 +22,10 @@ class InMemoryLongStore(initial: Long = 0L) : LongStore {
     override fun set(value: Long) { current = value }
 }
 
+private object NoOpLibraryWiper : LocalLibraryWiper {
+    override suspend fun wipe() = Unit
+}
+
 class CloudSyncEngine(
     private val storage: CloudSyncStorage,
     private val accountManager: AccountManager,
@@ -30,6 +34,7 @@ class CloudSyncEngine(
     private val lastSyncedAtStore: LongStore = InMemoryLongStore(),
     private val clock: Clock = Clock.System,
     private val deviceLabel: String = "unknown-device",
+    private val localLibraryWiper: LocalLibraryWiper = NoOpLibraryWiper,
 ) {
     private val pushMutex = Mutex()
     private val pullMutex = Mutex()
@@ -127,6 +132,64 @@ class CloudSyncEngine(
             !localSummary.isEmpty && cloudIsEmpty -> SignInDecision.UploadLocal
             else -> SignInDecision.AskUser(localSummary, cloudMetadata!!)
         }
+    }
+
+    /**
+     * "Use cloud (replace local)" path from the sign-in conflict modal. Bypasses the
+     * `lastSyncedAt` freshness check, wipes the local library so the restore truly replaces
+     * instead of merging, and then applies the cloud snapshot.
+     */
+    suspend fun forceRestoreCloud(): PullResult = pullMutex.withLock {
+        val signedIn = currentSignedInOrNull() ?: return PullResult.NotSignedIn
+
+        val envelope = runCatching { storage.fetchSnapshot(signedIn.uid) }
+            .getOrElse { return PullResult.Failed(it.message ?: "unknown error") }
+            ?: return PullResult.NoCloudSnapshot
+
+        runCatching { localLibraryWiper.wipe() }
+            .onFailure { return PullResult.Failed("wipe failed: ${it.message ?: "unknown"}") }
+
+        return runCatching { snapshotConsumer.apply(envelope.payload, envelope.schemaVersion) }
+            .fold(
+                onSuccess = {
+                    persistLastSyncedAt(envelope.updatedAt)
+                    PullResult.Restored(envelope.updatedAt)
+                },
+                onFailure = { PullResult.Failed(it.message ?: "unknown error") },
+            )
+    }
+
+    /**
+     * "Use local (replace cloud)" path from the sign-in conflict modal. Deletes every cloud
+     * document for the user, then pushes a fresh snapshot from the local library so the
+     * cloud is rebuilt from scratch.
+     */
+    suspend fun replaceCloudWithLocal(): PushResult = pushMutex.withLock {
+        val signedIn = currentSignedInOrNull() ?: return PushResult.NotSignedIn
+
+        runCatching { storage.deleteAll(signedIn.uid) }
+            .onFailure { return PushResult.Failed("clear cloud failed: ${it.message ?: "unknown"}") }
+
+        // Reset lastSyncedAt so the engine knows the cloud is fresh for this account.
+        persistLastSyncedAt(0L)
+
+        val produced = snapshotProducer.produce()
+        val now = clock.nowMillis()
+        val envelope = SnapshotEnvelope(
+            payload = produced.payload,
+            updatedAt = now,
+            schemaVersion = produced.schemaVersion,
+            mangaCount = produced.mangaCount,
+            deviceLabel = deviceLabel,
+        )
+        return runCatching { storage.writeSnapshot(signedIn.uid, envelope) }
+            .fold(
+                onSuccess = {
+                    persistLastSyncedAt(now)
+                    PushResult.Pushed(now)
+                },
+                onFailure = { PushResult.Failed(it.message ?: "unknown error") },
+            )
     }
 
     fun setLastSyncedAt(value: Long) {

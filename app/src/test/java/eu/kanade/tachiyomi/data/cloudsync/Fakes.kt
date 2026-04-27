@@ -134,3 +134,16 @@ class FakeSnapshotConsumer : SnapshotConsumer {
         applied += payload to schemaVersion
     }
 }
+
+class FakeLocalLibraryWiper : LocalLibraryWiper {
+    var wipeCount: Int = 0
+    var failNext: Throwable? = null
+
+    override suspend fun wipe() {
+        failNext?.let {
+            failNext = null
+            throw it
+        }
+        wipeCount++
+    }
+}
