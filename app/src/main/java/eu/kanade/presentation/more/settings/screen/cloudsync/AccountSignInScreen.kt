@@ -49,12 +49,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
-import tachiyomi.core.common.i18n.stringResource as contextStringResource
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
 import tachiyomi.presentation.core.i18n.stringResource
 import uy.kohesive.injekt.Injekt
 import uy.kohesive.injekt.api.get
+import tachiyomi.core.common.i18n.stringResource as contextStringResource
 
 class AccountSignInScreen : Screen() {
 
@@ -327,7 +327,9 @@ private fun SignUpForm(
         label = { Text(stringResource(MR.strings.cloud_sync_field_confirm_password)) },
         supportingText = if (state.confirmPasswordError) {
             { Text("Passwords do not match") }
-        } else null,
+        } else {
+            null
+        },
         visualTransformation = PasswordVisualTransformation(),
         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
         isError = state.confirmPasswordError,
@@ -447,7 +449,9 @@ private fun ForgotPasswordDialog(
         title = { Text("Forgot password") },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text("Enter your username or recovery email. If a recovery email is on file, a reset link will be sent.")
+                Text(
+                    "Enter your username or recovery email. If a recovery email is on file, a reset link will be sent.",
+                )
                 OutlinedTextField(
                     value = value,
                     onValueChange = { value = it },
@@ -558,6 +562,7 @@ class AccountSignInScreenModel(
         // Push an empty snapshot so the cloud has a record bound to the new account.
         engine.pushSnapshotIfDirty(force = true)
     }
+
     /**
      * Sign-in conflict modal "Use cloud (replace local)". Bypasses the freshness check and
      * wipes the local library before applying the cloud snapshot, so the user actually sees

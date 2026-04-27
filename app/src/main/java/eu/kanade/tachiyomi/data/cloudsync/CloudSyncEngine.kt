@@ -19,7 +19,9 @@ interface LongStore {
 class InMemoryLongStore(initial: Long = 0L) : LongStore {
     private var current: Long = initial
     override fun get(): Long = current
-    override fun set(value: Long) { current = value }
+    override fun set(value: Long) {
+        current = value
+    }
 }
 
 private object NoOpLibraryWiper : LocalLibraryWiper {
@@ -38,8 +40,8 @@ class CloudSyncEngine(
 ) {
     private val pushMutex = Mutex()
     private val pullMutex = Mutex()
-    private val _lastSyncedAtFlow = MutableStateFlow(lastSyncedAtStore.get())
-    val lastSyncedAt: Flow<Long> get() = _lastSyncedAtFlow.asStateFlow()
+    private val _lastSyncedAt = MutableStateFlow(lastSyncedAtStore.get())
+    val lastSyncedAt: Flow<Long> get() = _lastSyncedAt.asStateFlow()
 
     suspend fun pushSnapshotIfDirty(force: Boolean = false): PushResult = pushMutex.withLock {
         val signedIn = currentSignedInOrNull() ?: return PushResult.NotSignedIn
@@ -198,7 +200,7 @@ class CloudSyncEngine(
 
     private fun persistLastSyncedAt(value: Long) {
         lastSyncedAtStore.set(value)
-        _lastSyncedAtFlow.value = value
+        _lastSyncedAt.value = value
     }
 
     private fun currentSignedInOrNull(): AccountState.SignedIn? {
