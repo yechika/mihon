@@ -62,7 +62,11 @@ jobs:
           path: app/build/reports/tests/testDebugUnitTest
 
       - name: Build app
-        run: ./gradlew assembleRelease -Pinclude-telemetry -Penable-updater
+        # NOTE: -Pinclude-telemetry intentionally omitted on CI because
+        # app/google-services.json is fork-specific and gitignored. The
+        # Firebase variant is built locally by fork maintainers; CI verifies
+        # the no-Firebase / noop source-set path only.
+        run: ./gradlew assembleRelease -Penable-updater
 
       - name: Upload APK
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
