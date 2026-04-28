@@ -49,7 +49,10 @@ jobs:
         run: ./gradlew testDebugUnitTest
 
       - name: Verify Firebase-free path compiles
-        run: ./gradlew :app:compileDebugKotlin
+        # No `-Pinclude-telemetry` flag → noop bindings + no google-services.json
+        # required. Compile both flavors to confirm neither depends on Firebase
+        # being on the classpath when the user opts out.
+        run: ./gradlew :app:compileMihonDebugKotlin :app:compileMihonmodDebugKotlin
 
       - name: Restore google-services.json from secret
         if: ${{ env.GOOGLE_SERVICES_JSON_BASE64 != '' }}
@@ -75,22 +78,30 @@ jobs:
         # restores app/google-services.json and we build with -Pinclude-telemetry
         # so the Firebase / cloud-sync variant ships. Otherwise we fall back to
         # the no-Firebase / noop path so forks without a Firebase project can
-        # still pass CI.
+        # still pass CI. Both `mihon` and `mihonmod` flavors are produced so a
+        # fork distribution can offer either: drop-in Mihon update, or a
+        # side-by-side install named MihonMod.
         run: |
           if [ -s app/google-services.json ]; then
-            ./gradlew assembleRelease -Pinclude-telemetry -Penable-updater
+            ./gradlew assembleMihonRelease assembleMihonmodRelease -Pinclude-telemetry -Penable-updater
           else
-            ./gradlew assembleRelease -Penable-updater
+            ./gradlew assembleMihonRelease assembleMihonmodRelease -Penable-updater
           fi
 
-      - name: Upload APK
+      - name: Upload Mihon APK
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
-          name: arm64-v8a-${{ github.sha }}
-          path: app/build/outputs/apk/release/app-arm64-v8a-release-unsigned.apk
+          name: mihon-arm64-v8a-${{ github.sha }}
+          path: app/build/outputs/apk/mihon/release/app-mihon-arm64-v8a-release-unsigned.apk
+
+      - name: Upload MihonMod APK
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
+        with:
+          name: mihonmod-arm64-v8a-${{ github.sha }}
+          path: app/build/outputs/apk/mihonmod/release/app-mihonmod-arm64-v8a-release-unsigned.apk
 
       - name: Upload mapping
         uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: mapping-${{ github.sha }}
-          path: app/build/outputs/mapping/release
+          path: app/build/outputs/mapping/

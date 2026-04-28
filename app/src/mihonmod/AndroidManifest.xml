@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    MihonMod-only manifest overlay.
+
+    Declares package visibility for the official Mihon app so the first-launch
+    onboarding can detect it via PackageManager.getPackageInfo("app.mihon", 0)
+    on Android 11+ where package visibility is restricted by default.
+
+    This file is merged with app/src/main/AndroidManifest.xml at build time when
+    the active flavor is `mihonmod`. The `mihon` flavor does not get this entry.
+-->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <queries>
+        <package android:name="app.mihon" />
+    </queries>
+
+</manifest>

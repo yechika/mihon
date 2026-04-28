@@ -19,7 +19,14 @@ import java.security.MessageDigest
  */
 object CloudSyncProductionGuard {
 
-    private val ALLOWED_PACKAGES = setOf("app.mihon", "app.mihon.dev")
+    private val ALLOWED_PACKAGES = setOf(
+        // Original mihon flavor — drop-in update for users with the official APK.
+        "app.mihon",
+        "app.mihon.dev",
+        // mihonmod flavor — side-by-side install alongside the official Mihon.
+        "app.mihonmod",
+        "app.mihonmod.dev",
+    )
 
     /**
      * SHA-1 fingerprints (uppercase, colon-separated) of certificates allowed to enable cloud

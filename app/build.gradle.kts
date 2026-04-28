@@ -24,6 +24,8 @@ android {
     namespace = "eu.kanade.tachiyomi"
 
     defaultConfig {
+        // applicationId is overridden per product flavor below; the value here is a fallback
+        // for tasks that do not pick a flavor (rare).
         applicationId = "app.mihon"
 
         versionCode = 22
@@ -36,6 +38,22 @@ android {
         buildConfigField("boolean", "UPDATER_ENABLED", "${Config.enableUpdater}")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+    }
+
+    flavorDimensions += "default"
+    productFlavors {
+        // The original Mihon identity; updates the user's existing Mihon install when sideloaded.
+        create("mihon") {
+            dimension = "default"
+            applicationId = "app.mihon"
+        }
+        // Side-by-side install with the official Mihon. Pick this flavor for fork distribution
+        // when you want users to keep the official APK alongside yours.
+        create("mihonmod") {
+            dimension = "default"
+            applicationId = "app.mihonmod"
+            versionNameSuffix = "-mod"
+        }
     }
 
     buildTypes {

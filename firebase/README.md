@@ -12,7 +12,12 @@ The app reads `google-services.json` (placed by you at `app/src/standard/google-
 If you are running a fork of Mihon and want cloud sync to work for your fork's users, you need your own Firebase project. The project this repo points at is locked to the official Mihon signing certificate; a fork build will silently disable the feature against it.
 
 1. Create a Firebase project at <https://console.firebase.google.com/>.
-2. Add an Android app with the package name `app.mihon` (or your fork's package name) and the SHA-1 of your release signing key.
+2. Add **all four** Android apps your fork can ship as so that whichever flavor + buildType the user installs is recognised by Firebase:
+   - `app.mihon` (mihon flavor, release variant)
+   - `app.mihon.dev` (mihon flavor, debug variant)
+   - `app.mihonmod` (mihonmod flavor, release variant — side-by-side install)
+   - `app.mihonmod.dev` (mihonmod flavor, debug variant)
+   For each app, add the SHA-1 of your release / debug signing key.
 3. In the Firebase console:
    - **Authentication** -> Sign-in method -> enable **Email/Password**.
    - **Firestore Database** -> Create database in **production** mode.

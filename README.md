@@ -35,6 +35,7 @@ Discover and read manga, webtoons, comics, and more – easier than ever on your
 * Schedule updating your library for new chapters.
 * Create backups locally to read offline or to your desired cloud service.
 * Optional cloud sync of your library, categories, and reading progress to your account so data follows you between devices.
+* Optional **MihonMod** flavor: a side-by-side install (different package id, different launcher icon) that lets you keep the official Mihon app on your device unchanged while running this fork in parallel. Data is NOT shared automatically between the two installs; use the cloud sync feature or a `.tachibk` backup to migrate.
 * Plus much more...
 
 </div>

@@ -74,7 +74,11 @@ import eu.kanade.presentation.components.AppStateBanners
 import eu.kanade.presentation.components.DownloadedOnlyBannerBackgroundColor
 import eu.kanade.presentation.components.IncognitoModeBannerBackgroundColor
 import eu.kanade.presentation.components.IndexingBannerBackgroundColor
+import eu.kanade.presentation.more.mihonmod.MihonDetectionDialog
+import eu.kanade.presentation.more.mihonmod.openOfficialMihon
+import eu.kanade.presentation.more.mihonmod.shouldShowMihonModOnboarding
 import eu.kanade.presentation.more.settings.screen.browse.ExtensionReposScreen
+import eu.kanade.presentation.more.settings.screen.cloudsync.AccountSignInScreen
 import eu.kanade.presentation.more.settings.screen.data.RestoreBackupScreen
 import eu.kanade.presentation.util.AssistContentScreen
 import eu.kanade.presentation.util.DefaultNavigatorScreenTransition
@@ -110,6 +114,7 @@ import tachiyomi.core.common.Constants
 import tachiyomi.core.common.util.lang.launchIO
 import tachiyomi.core.common.util.system.logcat
 import tachiyomi.domain.library.service.LibraryPreferences
+import tachiyomi.domain.mihonmod.service.MihonModPreferences
 import tachiyomi.domain.release.interactor.GetApplicationRelease
 import tachiyomi.i18n.MR
 import tachiyomi.presentation.core.components.material.Scaffold
@@ -131,6 +136,7 @@ class MainActivity : BaseActivity() {
     private val chapterCache: ChapterCache by injectLazy()
 
     private val getIncognitoState: GetIncognitoState by injectLazy()
+    private val mihonModPreferences: MihonModPreferences by injectLazy()
 
     // To be checked by splash screen. If true then splash screen will be removed.
     var ready = false
@@ -200,6 +206,44 @@ class MainActivity : BaseActivity() {
                     (navigator.lastItem as? BrowseSourceScreen)?.sourceId
                         .let(getIncognitoState::subscribe)
                         .collectLatest { incognito = it }
+                }
+
+                // First-launch detection of the official Mihon (mihonmod flavor only).
+                var showMihonDetectionDialog by remember { mutableStateOf(false) }
+                LaunchedEffect(Unit) {
+                    if (shouldShowMihonModOnboarding(
+                            context = context,
+                            onboardingShown = mihonModPreferences.mihonmodOnboardingShown.get(),
+                        )
+                    ) {
+                        showMihonDetectionDialog = true
+                    }
+                }
+                if (showMihonDetectionDialog) {
+                    MihonDetectionDialog(
+                        onOpenMihon = {
+                            openOfficialMihon(context)
+                            mihonModPreferences.mihonmodOnboardingShown.set(true)
+                            showMihonDetectionDialog = false
+                        },
+                        onRestoreBackup = {
+                            mihonModPreferences.mihonmodOnboardingShown.set(true)
+                            showMihonDetectionDialog = false
+                            // Send user to Settings → Data and storage; they then tap the
+                            // existing Restore backup row, which already wires the file
+                            // picker + RestoreBackupScreen flow we don't want to duplicate.
+                            navigator.push(eu.kanade.presentation.more.settings.screen.SettingsDataScreen)
+                        },
+                        onSignInCloudSync = {
+                            mihonModPreferences.mihonmodOnboardingShown.set(true)
+                            showMihonDetectionDialog = false
+                            navigator.push(AccountSignInScreen())
+                        },
+                        onDismiss = {
+                            mihonModPreferences.mihonmodOnboardingShown.set(true)
+                            showMihonDetectionDialog = false
+                        },
+                    )
                 }
 
                 val scaffoldInsets = WindowInsets.navigationBars.only(WindowInsetsSides.Horizontal)
